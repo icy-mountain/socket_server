@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"os"
+	"strconv"
+	"time"
 )
 
 type Client struct {
@@ -38,7 +41,21 @@ func newClient(connection net.Conn) *Client {
 
 	go client.read()
 	go client.write()
-
+	greeting := "Hello!\nIm a server! lets talk.\n"
+	rand.Seed(time.Now().UnixNano())
+	left := strconv.Itoa(rand.Intn(100))
+	right := strconv.Itoa(rand.Intn(100))
+	oper := " + "
+	switch operi := rand.Intn(100); operi {
+	case 1:
+		oper = " - "
+	case 2:
+		oper = " * "
+	case 3:
+		oper = " / "
+	}
+	client.outgoing <- greeting
+	client.outgoing <- left + oper + right + " = ?\n"
 	return client
 }
 
@@ -107,8 +124,7 @@ func (server *Server) listen() {
 			case conn := <-server.conn:
 				server.addClient(conn)
 			case data := <-server.incoming:
-				//server.response(data)
-				server.outgoing <- data
+				server.response(data)
 			}
 		}
 	}()
@@ -127,6 +143,8 @@ func (server *Server) addClient(conn net.Conn) {
 }
 
 func (server *Server) response(data string) {
+	//data = "fuck!\n"
+	data += "\n"
 	server.outgoing <- data
 }
 
