@@ -9,12 +9,15 @@ import (
 	"os"
 	"strconv"
 	"time"
+	str "strings"
 )
 
 type Client struct {
 	conn     net.Conn
+	idx      int
 	incoming chan string
 	outgoing chan string
+	question string
 	reader   *bufio.Reader
 	writer   *bufio.Writer
 }
@@ -27,12 +30,49 @@ type Server struct {
 	outgoing chan string
 }
 
-func newClient(connection net.Conn) *Client {
+func make_quiz() string {
+	rand.Seed(time.Now().UnixNano())
+	left := rand.Intn(100)
+	right := rand.Intn(100)
+	oper := " + "
+	switch operi := rand.Intn(4); operi {
+	case 1:
+		oper = " - "
+	case 2:
+		oper = " * "
+	case 3:
+		oper = " / "
+		left *= 3
+		right += 1
+	}
+	return strconv.Itoa(left) + oper + strconv.Itoa(right)
+}
+
+func calc_quiz(data string) int {
+	tkn := str.Split(data, " ")
+	left , err := strconv.Atoi(tkn[0])
+	checkError(err, "Atoi error!")
+	right , err2 := strconv.Atoi(tkn[2])
+	checkError(err2, "Atoi error!")
+	ans := left + right
+	switch tkn[1] {
+	case "-":
+		ans = left - right
+	case "*":
+		ans = left * right
+	case "/":
+		ans = left / right
+	}
+	return ans
+}
+
+func newClient(connection net.Conn, length int) *Client {
 	writer := bufio.NewWriter(connection)
 	reader := bufio.NewReader(connection)
 
 	client := &Client{
 		conn:     connection,
+		idx:      length,
 		incoming: make(chan string),
 		outgoing: make(chan string),
 		reader:   reader,
@@ -41,21 +81,11 @@ func newClient(connection net.Conn) *Client {
 
 	go client.read()
 	go client.write()
-	greeting := "Hello!\nIm a server! lets talk.\n"
-	rand.Seed(time.Now().UnixNano())
-	left := strconv.Itoa(rand.Intn(100))
-	right := strconv.Itoa(rand.Intn(100))
-	oper := " + "
-	switch operi := rand.Intn(100); operi {
-	case 1:
-		oper = " - "
-	case 2:
-		oper = " * "
-	case 3:
-		oper = " / "
-	}
+	greeting := "Hello!\nIm hoge server! lets talk.\n"
+	quiz := make_quiz()
+	client.question = "quiz:" + quiz
 	client.outgoing <- greeting
-	client.outgoing <- left + oper + right + " = ?\n"
+	client.outgoing <- quiz + " = ?\n"
 	return client
 }
 
@@ -132,19 +162,32 @@ func (server *Server) listen() {
 
 func (server *Server) addClient(conn net.Conn) {
 	fmt.Printf("[%s]Accept\n", conn.RemoteAddr())
-	client := newClient(conn)
+	client := newClient(conn, len(server.clients))
 	server.clients = append(server.clients, client)
 	go func() {
 		for {
-			server.incoming <- <-client.incoming
+			message := strconv.Itoa(client.idx) + ":" + <-client.incoming
+			server.incoming <- message
 			client.outgoing <- <-server.outgoing
 		}
 	}()
 }
 
 func (server *Server) response(data string) {
-	//data = "fuck!\n"
-	data += "\n"
+	idx , err := strconv.Atoi(str.Split(data, ":")[0])
+	checkError(err, "Atoi error!")
+	bfr := str.Split(server.clients[idx].question, ":")
+	if bfr[0] == "quiz" {
+		ans := strconv.Itoa(calc_quiz(bfr[1]))
+		next := make_quiz()
+		if strconv.Itoa(idx) + ":" + ans  + "\n" == data {
+			data = ">>correct! ok, next question!\n" + next
+		} else {
+			data = ">>boooo!! next question!\n" + next
+		}
+		server.clients[idx].question = "quiz:" + next
+	}
+	data += " = ?\n"
 	server.outgoing <- data
 }
 
