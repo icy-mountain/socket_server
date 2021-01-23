@@ -51,9 +51,9 @@ func make_quiz() string {
 func calc_quiz(data string) int {
 	tkn := str.Split(data, " ")
 	left , err := strconv.Atoi(tkn[0])
-	checkError(err, "Atoi error!")
+	checkError(err, "in calc_quiz: Atoi error!")
 	right , err2 := strconv.Atoi(tkn[2])
-	checkError(err2, "Atoi error!")
+	checkError(err2, "in calc_quiz: Atoi error!")
 	ans := left + right
 	switch tkn[1] {
 	case "-":
@@ -81,11 +81,10 @@ func newClient(connection net.Conn, length int) *Client {
 
 	go client.read()
 	go client.write()
-	greeting := "Hello!\nIm hoge server! lets talk.\n"
+	greeting := "Hello!\nIm hoge server! lets talk.\n "
 	quiz := make_quiz()
 	client.question = "quiz:" + quiz
-	client.outgoing <- greeting
-	client.outgoing <- quiz + " = ?\n"
+	client.outgoing <- greeting + quiz + " = ?\n"
 	return client
 }
 
@@ -93,11 +92,14 @@ func (client *Client) read() {
 	for {
 		line, err := client.reader.ReadString('\n')
 		if err == io.EOF {
+			fmt.Printf("[%s] Close.\n", client.conn.RemoteAddr())
 			client.conn.Close()
 			break
 		}
 		if err != nil {
-			checkError(err, "ReadString Error")
+			fmt.Printf("[%s] read error. Close.\n", client.conn.RemoteAddr())
+			client.conn.Close()
+			break
 		}
 		client.incoming <- line
 		fmt.Printf("[%s]Read:%s", client.conn.RemoteAddr(), line)
@@ -175,15 +177,15 @@ func (server *Server) addClient(conn net.Conn) {
 
 func (server *Server) response(data string) {
 	idx , err := strconv.Atoi(str.Split(data, ":")[0])
-	checkError(err, "Atoi error!")
+	checkError(err, "in response: client index error!")
 	bfr := str.Split(server.clients[idx].question, ":")
 	if bfr[0] == "quiz" {
 		ans := strconv.Itoa(calc_quiz(bfr[1]))
 		next := make_quiz()
 		if strconv.Itoa(idx) + ":" + ans  + "\n" == data {
-			data = ">>correct! ok, next question!\n" + next
+			data = ">>correct! ok, next question!\n " + next
 		} else {
-			data = ">>boooo!! next question!\n" + next
+			data = ">>boooo!! next question!\n " + next
 		}
 		server.clients[idx].question = "quiz:" + next
 	}
