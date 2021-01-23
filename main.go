@@ -113,7 +113,7 @@ func (client *Client) write() {
 		if data == "KILL WRITER" {
 			fmt.Printf("[%s]KILL WRITER\n", client.conn.RemoteAddr())
 			return
-		} 
+		}
 		client.writer.WriteString(data)
 		client.writer.Flush()
 		fmt.Printf("[%s]Write:%s\n", client.conn.RemoteAddr(), data)
