@@ -92,14 +92,16 @@ func (client *Client) read() {
 	for {
 		line, err := client.reader.ReadString('\n')
 		if err == io.EOF {
-			fmt.Printf("[%s] Close.\n", client.conn.RemoteAddr())
+			fmt.Printf("[%s]Close.\n", client.conn.RemoteAddr())
 			client.conn.Close()
-			break
+			client.outgoing <- "KILL WRITER"
+			return
 		}
 		if err != nil {
-			fmt.Printf("[%s] read error. Close.\n", client.conn.RemoteAddr())
+			fmt.Printf("[%s]read error. Close.\n", client.conn.RemoteAddr())
 			client.conn.Close()
-			break
+			client.outgoing <- "KILL WRITER"
+			return
 		}
 		client.incoming <- line
 		fmt.Printf("[%s]Read:%s", client.conn.RemoteAddr(), line)
@@ -108,6 +110,10 @@ func (client *Client) read() {
 
 func (client *Client) write() {
 	for data := range client.outgoing {
+		if data == "KILL WRITER" {
+			fmt.Printf("[%s]KILL WRITER\n", client.conn.RemoteAddr())
+			return
+		} 
 		client.writer.WriteString(data)
 		client.writer.Flush()
 		fmt.Printf("[%s]Write:%s\n", client.conn.RemoteAddr(), data)
