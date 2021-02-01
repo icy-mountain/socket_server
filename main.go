@@ -121,7 +121,7 @@ func (client *Client) write() {
 }
 
 func newListener() *net.TCPListener {
-	service := ":8080"
+	service := ":8888"
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
 	checkError(err, "Resolve Error")
 	listener, err := net.ListenTCP("tcp", tcpAddr)
